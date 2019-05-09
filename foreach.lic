@@ -126,7 +126,7 @@ module ForeachScript
     VERSION = '0.7 (2017-07-24)'
     CONFIG_VERSION = 2
     FILTER_PATTERN = /^(?:(?:(?:(.+)=)?(.+)\s+([io]n)\s+)|([io]n)\s+)(.+)$/
-    INV_PATTERN = /(?:(?:Peering into|[IO]n) .* <a exist="(-?\d+)"[^>]*>([^<]*)<\/a>,? you see )|(?:[OI]n the <a exist="(-?\d+)"[^>]*>([^<]*)<\/a>:\s*$)|There is nothing [io]n there|That is closed.|I could not find what you were referring to\./
+    INV_PATTERN = /(?:(?:Peering into|[IO]n) .* <a exist="(-?\d+)"[^>]*>([^<]*)<\/a>,? you see )|(?:[OI]n the <a exist="(-?\d+)"[^>]*>([^<]*)<\/a>:\s*$)|There is nothing [io]n the|That is closed.|I could not find what you were referring to\./
     HOOK = 'foreach_script_temp_hook'
     HELP_URL = "https://github.com/dewiniaid/gs4-lich-scripts/blob/master/Foreach.md"
 
@@ -163,7 +163,7 @@ module ForeachScript
             msg = REXML::Text.new(msg, respect_whitespace: true).to_s
             msg.gsub!(/\*\*(.*?)\*\*/, '<preset id="whisper">\1</preset>')
             msg = "<output class=\"mono\" />\n#{msg}\n<output class=\"\" />" if mono
-            puts msg
+            _respond msg
         else
             msg.gsub!('**', '')
             respond msg
@@ -178,9 +178,9 @@ module ForeachScript
         option = proc{|what|
             cmd = "#{send} #{what.upcase}"
             if @stormfront
-                puts "    <d cmd=\"#{cmd}\">#{cmd}</d>"
+                _respond "    <d cmd=\"#{cmd}\">#{cmd}</d>"
             else
-                puts "    #{cmd}"
+                respond "    #{cmd}"
             end
         }
 
@@ -196,7 +196,7 @@ module ForeachScript
                         Script.run('xmlpatch')
                     end
                     echo "Done!"
-                    puts "\nTo see what's new in this verison and view examples on how to use #{$lich_char}foreach, read the following:"
+                    _respond "\nTo see what's new in this verison and view examples on how to use #{$lich_char}foreach, read the following:"
                     respond "    #{HELP_URL}"
                     GameSettings['version'] = CONFIG_VERSION
                     return
@@ -220,7 +220,7 @@ module ForeachScript
         send_formatted(msg.join("\n"), false)
 
         while true
-            puts "Would you like Lich to check for updates to this script on startup?\n"
+            _respond "Would you like Lich to check for updates to this script on startup?\n"
             option.call('yes')
             option.call('no')
             response = unique_get.strip.downcase
@@ -237,13 +237,13 @@ module ForeachScript
                 echo 'Please answer YES or NO'
             end
         end
-        puts ''
+        respond ''
         sleep 1
         gameobjadd = false
         gameobjaddmore = false
 
         while true
-            puts [
+            _respond [
                 "ForEach has the ability to filter items by type using some functionality built-in to Lich.  However,",
                 " the data included in Lich is a bit outdated so some items may have the wrong type -- or have no type",
                 " at all.\n",
@@ -281,25 +281,25 @@ module ForeachScript
 
         sleep 1
         echo "Just a few more things..."
-        puts "You may want to check out some of my other scripts.  Here's a list:"
+        respond "You may want to check out some of my other scripts.  Here's a list:"
         Script.run('repository', 'list --author=LostRanger')
-        puts ''
-        puts [
+        respond ''
+        _respond [
             "If ForEach is a trusted script, it will hide the commands it is sending to scan inventories and thus",
             " reduce a tiny bit of screen spam.  This is entirely optional and doesn't otherwise affect the script at all.",
             "  You can trust the script with\n",
         ].join('')
         respond "    #{$lich_char}trust foreach"
-        puts "(LostRanger recommends that you review the code for scripts before trusting them!)"
-        puts "\nTo view information and examples on how to use #{$lich_char}foreach, read the following:"
+        _respond "(LostRanger recommends that you review the code for scripts before trusting them!)"
+        _respond "\nTo view information and examples on how to use #{$lich_char}foreach, read the following:"
         respond "    #{HELP_URL}"
-        puts "\nTo see a short reminder on how to use #{$lich_char}foreach in game, type:"
+        _respond "\nTo see a short reminder on how to use #{$lich_char}foreach in game, type:"
         respond "    #{$lich_char}#{@script.name} help"
-        puts "\nTo run this setup process again at any time, type:"
+        _respond "\nTo run this setup process again at any time, type:"
         respond "    #{$lich_char}#{@script.name} setup"
 
         if @script.vars[0].strip.length > 0 and not force
-           puts "\nTo run the command you were about to run when Foreach launched its first-time setup, type:"
+            _respond "\nTo run the command you were about to run when Foreach launched its first-time setup, type:"
            respond "    #{$lich_char}#{@script.name} #{@script.vars[0]}"
         end
         GameSettings['version'] = CONFIG_VERSION
@@ -384,7 +384,7 @@ module ForeachScript
         if @stormfront
             msg = REXML::Text.new(msg, respect_whitespace: true).to_s
             msg.gsub!(/\*\*(.*?)\*\*/, '<preset id="whisper">\1</preset>')
-            puts "<output class=\"mono\" />\n#{msg}\n<output class=\"\" />"
+            _respond "<output class=\"mono\" />\n#{msg}\n<output class=\"\" />"
         else
             msg.gsub!('**', '')
             respond msg
@@ -700,7 +700,9 @@ module ForeachScript
                 exit
             end
             exist = ($1 or $3)
+			echo exist
             name = ($2 or $4)
+			echo name
             unless exist
                 echo "Error locating item or item inventory."
                 exit
@@ -817,17 +819,21 @@ module ForeachScript
                             put_command = floor ? "place #{what}" : "put #{what} in #{where}"
 
                             unless holding
-                                if fast
+                                waitrt?
+								if fast
                                     put get_command
                                 else
                                     fput get_command
                                 end
+								waitrt?
                             end
-                            if fast
+                            waitrt?
+							if fast
                                 put put_command
                             else
                                 fput put_command
                             end
+							waitrt?
                             waitfor '<right>', '<left>'
                             next if floor
 
@@ -938,7 +944,16 @@ module ForeachScript
                         elsif command =~ /^waitrt$/i
                             before_next = nil
                             waitrt
-                        elsif command =~ /^waitfor (.*)$/i
+                        elsif command =~ /^waitrt\?$/i
+                            before_next = nil
+                            waitrt?
+                        elsif command =~ /^waitcastrt$/i
+                            before_next = nil
+                            waitcastrt
+						elsif command =~ /^waitcastrt\?$/i
+                            before_next = nil
+                            waitcastrt?
+						elsif command =~ /^waitfor (.*)$/i
                             script.want_downstream = true
                             script.want_downstream_xml = false
                             waitfor $1
@@ -961,9 +976,12 @@ module ForeachScript
                             msg << '<output class="mono" />' if $stormfront
                             msg << "[#{@script.name}: Pausing at #{self.item_detail(item)},  (#{processed_items + 1} of #{total_items}, #{percent}% complete)."
                             msg << '<output class="" />' if $stormfront
-                            puts msg.join("\n")
+                            _respond msg.join("\n")
                             pause_script
                             before_next = proc { waitrt? }
+						elsif command =~ /^sleep (.*)$/i
+							before_next = nil
+							sleep $1.to_i
                         elsif command =~ /^giveitem(?:\s+(?:to\s+)?(.+))?$/i
                             before_next.call if before_next
                             before_next = nil
@@ -1011,11 +1029,11 @@ module ForeachScript
                 items.each{|item|
                     msg << item_detail(item)
                 }
-                puts msg.join("\n")
+                _respond msg.join("\n")
             end
         }
         unless commands.length > 0
-            puts "\nTotal items: #{total_items}"
+            _respond "\nTotal items: #{total_items}"
         end
     end
 
