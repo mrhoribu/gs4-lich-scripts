@@ -202,7 +202,12 @@ if show_report
 
     if $SAFE == 0
         begin
-            report["Ruby location"] = Gem.bindir
+#            report["Ruby location"] = Gem.bindir
+          report["Ruby location"] = RbConfig::CONFIG['bindir']+'/'+\
+                    (RbConfig::CONFIG['RUBYW_INSTALL_NAME'].empty? ? \
+                      RbConfig::CONFIG['RUBY_INSTALL_NAME'] : \
+                      RbConfig::CONFIG['RUBYW_INSTALL_NAME'])+\
+                    RbConfig::CONFIG['EXEEXT']
         rescue
             report["Ruby location"] = 'error'
         end
