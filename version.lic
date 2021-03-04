@@ -5,9 +5,20 @@
 	  game: any
 	  tags: utility
 
-  version: 0.4 (2019-11-17)
+  version: 0.52 (2021-03-04)
 
   changelog:
+    version 0.52 (2021-03-04)
+      # fix ruby location report to Gem.bindir for cross platform used
+
+    version 0.51 (2020-12-19)
+      # add core engine algorithm to detect Cabal and LICH
+      # add json to regex for file extension naming
+
+    version 0.5 (2020-03-19)
+      * Fix our exception handling not actually working.
+      * Fix GTK version reporting, particularly w/ GTK3
+
     version 0.4 (2019-11-17)
       * Minor improvements.
 
@@ -31,11 +42,33 @@ end
 def module_version(sym)
     begin
         return 'not installed' unless Object.const_defined?(sym)
-        v = Object.const_get(sym)::VERSION
+        o = Object.const_get(sym)
+        return 'unknown' unless o.const_defined?(:VERSION)
+        v = o::VERSION
         return v.join('.') if v.is_a?(Array)
         return v.to_s
+    rescue
+        return 'error'
     end
-    return 'error'
+end
+
+def gtk_version
+    begin
+        return 'not installed' unless Object.const_defined?(:Gtk)
+        return 'unknown' unless Gtk.const_defined?(:Version)
+        return Gtk::Version::STRING
+    rescue
+        return 'error'
+    end
+end
+
+def core_engine
+  begin
+    return "Cabal v #{CABAL_VERSION}" if Object.const_defined?(:CABAL_VERSION)
+    return "Lich v #{LICH_VERSION}" if Object.const_defined?(:LICH_VERSION)
+  rescue
+    return 'Who are you and what have you done to the Lich?'
+  end
 end
 
 def format_report(report, width)
@@ -153,11 +186,11 @@ if show_report
         "Ruby version" => const_get(:RUBY_VERSION, missing: 'unknown'),
         "Ruby platform" =>  const_get(:RUBY_PLATFORM, missing: 'unknown'),
         "Ruby engine" => const_get(:RUBY_ENGINE, missing: 'unknown'),
-        "Lich version" => const_get(:LICH_VERSION, missing: 'unknown'),
+        "Scripting engine" => core_engine,
         "SQLite3 version" => module_version(:SQLite3),
-        "Gtk version" => module_version(:Gtk),
+        "Gtk version" => gtk_version,
         "Cairo version" => module_version(:Cairo),
-        "#{$lich_char}version Version" => "0.3"
+        "#{$lich_char}version Version" => "0.52"
     }
 
     msg += format_report(report, 20)
@@ -169,7 +202,7 @@ if show_report
 
     if $SAFE == 0
         begin
-            report["Ruby location"] = Win32.GetModuleFileName[:lpFilename]
+            report["Ruby location"] = Gem.bindir
         rescue
             report["Ruby location"] = 'error'
         end
@@ -181,7 +214,7 @@ if show_report
     if $SAFE == 0
         report = {}
         begin
-            fn = Dir.entries("#{DATA_DIR}/#{XMLData.game}").find_all { |filename| filename =~ /^map\-[0-9]+\.(?:dat|xml)$/ }.collect { |filename| "#{DATA_DIR}/#{XMLData.game}/#{filename}" }.sort[-1]
+            fn = Dir.entries("#{DATA_DIR}/#{XMLData.game}").find_all { |filename| filename =~ /^map\-[0-9]+\.(?:dat|xml|json)$/ }.collect { |filename| "#{DATA_DIR}/#{XMLData.game}/#{filename}" }.sort[-1]
             if fn
                 report["MapDB filename"] = File.basename(fn)
                 report["MapDB last modified"] = File.mtime(fn).to_s
